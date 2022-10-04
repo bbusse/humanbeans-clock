@@ -4,6 +4,42 @@ Humanbeans Flutter Clock Challenge Submission
 
 by Milen Trendafilov (design, concept) and Boris Brestnichki (development)
 
+## Build
+### Get the Flutter SDK
+```
+$ curl -LO https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.3.3-stable.tar.xz
+$ tar xf flutter_linux_3.3.3-stable.tar.xz
+$ cd flutter
+$ export PATH="$PATH:$(pwd)/flutter/bin"
+```
+### Build
+```
+$ git clone https://github.com/bbusse/humanbeans-clock humanbeans_clock
+$ cd humanbeans_clock
+$ flutter create .
+$ flutter pub upgrade
+# For the Linux target
+$ flutter build linux
+# For the Web target
+$ flutter build web
+```
+### Run the Linux app
+If you built as described above, your Linux app is in build/linux/x64/release/
+```
+$ flutter run
+# or
+$ cd build/linux/x64/release/
+$ ./humanbeans_clock
+```
+### Run the web app
+You need a web server to run the web app  
+For testing python can provide one
+```
+$ cd build/web
+$ python -m http.server 8000
+```
+Open http://localhost:8000 in a browser
+
 ## Concept:
 
 ![The clock with the rare bird comming from the right and sitting on a branch for 1 minute](https://humanbeans.dev/1_Bird_Visit1.gif)
