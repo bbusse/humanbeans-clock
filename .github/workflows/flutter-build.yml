@@ -32,10 +32,27 @@ jobs:
       - run: |
           sudo apt-get update -y
           sudo apt-get install -y ninja-build libgtk-3-dev
-          pwd
-          ls -ahl
       - run: flutter create .
       - run: flutter pub upgrade
       - run: flutter build linux
       - run: flutter build web
-      - run: ls -ahl build/
+      - name: Create archives
+        run: |
+          cd build/linux/x64/release
+          mv bundle humanbeans-clock
+          tar -cJvf humanbeans-clock-linux-latest.tar.xz humanbeans-clock
+          mv humanbeans-clock-linux-latest.tar.xz "$GITHUB_WORKSPACE"/
+          cd "$GITHUB_WORKSPACE"/humanbeans_clock/build
+          mv web humanbeans-clock-web
+          tar -cJvf humanbeans-clock-web-latest.tar.xz humanbeans-clock-web
+          mv humanbeans-clock-web-latest.tar.xz "$GITHUB_WORKSPACE"/
+          ls "$GITHUB_WORKSPACE"
+      - name: Release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          automatic_release_tag: "latest"
+          files: |
+            humanbeans-clock-linux-latest.tar.xz
+            humanbeans-clock-web-latest.tar.xz
