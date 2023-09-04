@@ -23,7 +23,7 @@ jobs:
       run:
         working-directory: ./humanbeans_clock
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: ./humanbeans_clock
       - uses: subosito/flutter-action@v2
