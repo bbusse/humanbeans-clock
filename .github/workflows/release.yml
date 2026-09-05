@@ -1,0 +1,76 @@
+---
+name: Build and Release Flutter App
+
+# Tag conventions, see compute-version.yml in bbusse/github-workflows
+#   rc-*       release candidate
+#   release-*  full release
+
+on:
+  push:
+    tags:
+      - 'rc-*'
+      - 'release-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android APK
+    uses: bbusse/github-workflows/.github/workflows/build-flutter-android.yml@dev
+    with:
+      flutter_version: 3.47.2
+      artifact_name: humanbeans-clock
+
+  macos:
+    name: macOS app
+    uses: bbusse/github-workflows/.github/workflows/build-flutter-macos.yml@dev
+    with:
+      flutter_version: 3.47.2
+      app_name: Eventually
+      artifact_name: humanbeans-clock
+
+  linux-web:
+    name: Linux and web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # rootless podman on this runner cannot chown extracted archive
+      # entries outside its subuid range, sudo runs it rootful instead
+      - name: Build in container
+        run: sudo ./build.sh
+
+      - name: Fix dist ownership
+        run: sudo chown -R "$(id -u):$(id -g)" dist
+
+      - name: Archive dist
+        run: |
+          set -eu
+          tar -cJf humanbeans-clock-linux.tar.xz -C dist/linux .
+          tar -cJf humanbeans-clock-web.tar.xz -C dist/web .
+
+      - name: Upload linux artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: humanbeans-clock-linux
+          path: humanbeans-clock-linux.tar.xz
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: humanbeans-clock-web
+          path: humanbeans-clock-web.tar.xz
+
+  release:
+    needs: [android, macos, linux-web]
+    permissions:
+      contents: write
+    uses: bbusse/github-workflows/.github/workflows/release.yml@dev
+    with:
+      artifact_name: humanbeans-clock
+      binary_name: humanbeans-clock
+      release_branch: ci
+      version_branch: dev
+    secrets: inherit

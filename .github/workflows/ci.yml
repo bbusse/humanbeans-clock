@@ -1,0 +1,100 @@
+---
+name: CI
+
+# Android and macOS produce the release deliverables, so they use the
+# build-flutter-* reusable workflows
+#
+# Linux and web are only built here as a check, the same way build.sh
+# does it locally, no registry push
+#
+# flutter_version mirrors the Containerfile ARG of the same name, bump
+# both together
+
+on:
+  push:
+    branches: [main, dev, ci]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [main, dev, ci]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Android APK
+    uses: bbusse/github-workflows/.github/workflows/build-flutter-android.yml@dev
+    with:
+      flutter_version: 3.47.2
+      artifact_name: humanbeans-clock
+
+  macos:
+    name: macOS app
+    uses: bbusse/github-workflows/.github/workflows/build-flutter-macos.yml@dev
+    with:
+      flutter_version: 3.47.2
+      app_name: Eventually
+      artifact_name: humanbeans-clock
+
+  container-build:
+    name: Container build (Linux + Web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # rootless podman on this runner cannot chown extracted archive
+      # entries outside its subuid range, sudo runs it rootful instead
+      - name: Build in container
+        run: sudo ./build.sh
+
+      - name: Fix dist ownership
+        run: sudo chown -R "$(id -u):$(id -g)" dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: humanbeans-clock-linux-web
+          path: dist
+
+  pages:
+    name: Deploy Pages
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Flutter
+        uses: bbusse/github-workflows/.github/actions/install-flutter@dev
+        with:
+          version: 3.47.2
+          precache_flags: --web
+
+      # analyze and test already run in the android and macos jobs, this
+      # build only differs by base-href, github pages serves this repo
+      # under /humanbeans-clock/ not from the domain root
+      - name: Build web
+        run: |
+          set -eu
+          flutter pub get
+          flutter build web --release --base-href /humanbeans-clock/
+
+      - name: Configure git identity
+        uses: bbusse/github-workflows/.github/actions/git-identity@dev
+
+      # pages is configured to serve branch web, path /docs, a worktree
+      # keeps that branch out of the main checkout
+      - name: Publish to web branch
+        run: |
+          set -eu
+          git fetch origin web
+          git worktree add ../web-branch origin/web
+          rm -rf ../web-branch/docs
+          mkdir -p ../web-branch/docs
+          cp -r build/web/. ../web-branch/docs/
+          touch ../web-branch/docs/.nojekyll
+          cd ../web-branch
+          git add docs
+          git diff --cached --quiet && exit 0
+          git commit -m "Publish web build"
+          git push origin HEAD:web
