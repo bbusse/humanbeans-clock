@@ -1,0 +1,100 @@
+---
+name: Build
+
+# CI and releases in one file. Every push and PR builds all four targets as
+# a check; an rc-*/release-* tag additionally runs the release job. A push to
+# main also republishes the web build to GitHub Pages.
+#
+# flutter_version mirrors the Containerfile ARG of the same name - bump both
+# together. The Containerfile / build.sh path is for local dev; CI builds
+# Linux and web through the reusable workflow like the other targets.
+
+on:
+  push:
+    branches: [main, dev, ci]
+    tags: ['rc-*', 'release-*']
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [main, dev, ci]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a tag build mid-release; superseded branch/PR runs are fine
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [android, macos, linux, web]
+    uses: bbusse/github-workflows/.github/workflows/build-flutter.yml@dev
+    with:
+      target: ${{ matrix.target }}
+      flutter_version: 3.47.2
+      app_name: Eventually
+      artifact_name: humanbeans-clock
+      # Pages serves this repo under /humanbeans-clock/, not the domain root.
+      # Release web builds (tag pushes) keep the default '/'.
+      base_href: ${{ (matrix.target == 'web' && !startsWith(github.ref, 'refs/tags/')) && '/humanbeans-clock/' || '/' }}
+
+  deploy-pages:
+    name: Deploy Pages
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download web build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: humanbeans-clock-web
+          path: web-dist
+
+      - name: Configure git identity
+        uses: bbusse/github-workflows/.github/actions/git-identity@dev
+
+      # pages is configured to serve branch web, path /docs; a worktree keeps
+      # that branch out of the main checkout
+      - name: Publish to web branch
+        run: |
+          set -eu
+          mkdir -p extracted
+          tar -xJf web-dist/humanbeans-clock-web.tar.xz -C extracted
+          git fetch origin web
+          git worktree add ../web-branch origin/web
+          rm -rf ../web-branch/docs
+          mkdir -p ../web-branch/docs
+          cp -r extracted/. ../web-branch/docs/
+          touch ../web-branch/docs/.nojekyll
+          cd ../web-branch
+          git add docs
+          git diff --cached --quiet && exit 0
+          git commit -m "Publish web build"
+          git push origin HEAD:web
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    uses: bbusse/github-workflows/.github/workflows/release.yml@dev
+    with:
+      artifact_name: humanbeans-clock
+      binary_name: humanbeans-clock
+      release_branch: ci
+      version_branch: dev
+    secrets: inherit
