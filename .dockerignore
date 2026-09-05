@@ -1,0 +1,11 @@
+.git
+.dart_tool
+.idea
+build
+dist
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+Containerfile
+.dockerignore
