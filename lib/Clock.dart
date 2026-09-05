@@ -1,18 +1,17 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
-import 'package:clock/BirdAnimations.dart';
-import 'package:clock/BirdController.dart';
-import 'package:clock/SceneLayout.dart';
-import 'package:clock/Utils.dart';
+import 'dart:ui' as ui;
+
+import 'package:humanbeans_clock/BirdAnimations.dart';
+import 'package:humanbeans_clock/BirdController.dart';
+import 'package:humanbeans_clock/ClockUiInheritedModel.dart';
+import 'package:humanbeans_clock/SceneLayout.dart';
+import 'package:humanbeans_clock/Utils.dart';
 import 'package:flare_flutter/flare_controls.dart';
-import 'package:flutter/material.dart' hide Image;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'ClockUiInheritedModel.dart';
-import 'dart:ui' as ui;
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Widget that does time tracking and orchestrating of data and animations.
 //
@@ -25,35 +24,41 @@ import 'dart:ui' as ui;
 // the child of the InheritedModel is const to stop the propagination of
 // the rebuild.
 class Clock extends StatefulWidget {
+  const Clock({super.key});
+
   @override
-  _ClockState createState() => _ClockState();
+  State<Clock> createState() => _ClockState();
 }
 
 class _ClockState extends State<Clock>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  // Key under which the next bird visit is persisted.
+  static const String _birdTimePrefsKey = 'birdTime';
+
   /// The current time for the watch
-  DateTime _dateTime;
+  DateTime _dateTime = DateTime.now();
+
   // The time during the previous render
   //
   // On first render it's set to the value of [_dateTime] then on each rebuild
   // it's set to the vale of [_dateTime] before it's reasigned to current time.
   // It's used to track which numbers of the clock counter shoud change on each clock
   // counter animation play;
-  DateTime _prevTime;
+  DateTime _prevTime = DateTime.now();
 
   // The time when the bird animation will play
   //
-  // The value is persisted in the file system and it's gets red from there on
+  // The value is persisted (shared_preferences) and it's gets read from there on
   // each initState call
   // The bird animation will play on the first render for which the [_dateTime] is
   // after the bird time
-  DateTime _birdTime;
+  DateTime? _birdTime;
 
   // Timer that executes callback on a given interval
   //
   // The callback calls [setState] for the [Clock] widget that triggers all the changes
   // in the app.
-  Timer _timer;
+  Timer? _timer;
 
   // Boolean to track if the app is in the foreground
   //
@@ -65,54 +70,54 @@ class _ClockState extends State<Clock>
   // clock.
   //
   // The app renders loading screen before the images load and the clock after that.
-  Future<List<ui.Image>> _imagesFuture;
+  Future<List<ui.Image>>? _imagesFuture;
 
   // Animation controller for the looping animation playng most of the time on the clock.
   //
   // The value of the animation is used by the leaves and branches images to animate the
   // "wind" effect.
-  AnimationController _idleAnimation;
+  late final AnimationController _idleAnimation;
 
   // Animation controller for the leaves "flying off" the branches.
   //
   // The animation plays during the minute change and does not loop
-  AnimationController _activeAnimation;
+  late final AnimationController _activeAnimation;
 
   // Controller to play the bird animations.
   //
   // The BirdController extends FlareController and overrides @onComplete method,
   // to expose it to the current class. This allows us to keep all the animation
   // orchestrating in this widget.
-  BirdController _birdControls;
+  late final BirdController _birdControls;
 
   // Controller to play the bird halo animations
   //
   // The bird and halo animations play at the same time and the halo should be
   // over the bird, but the halo [FlareActor] should be over the rest of the
   // elements in the app and it's separated because of that.
-  FlareControls _haloControls;
+  late final FlareControls _haloControls;
 
   // Custom class holding all the animations and animation durations for the bird [FlareActor].
   //
   // It's impelented as a class to provide functionality to show random animation from the list depending on how much time the bird
   // has to stay on the screen.
-  BirdAnimations _birdAnimations = BirdAnimations();
+  final BirdAnimations _birdAnimations = BirdAnimations();
 
   // Timer providing pause between the bird animations
-  Timer _birdTimer;
+  Timer? _birdTimer;
 
   // Animation controller for the clock counter widget.
   //
   // Plays the animation for changing the numbers on the clock counter. Its'
   // triggered every time the clock nimbers need to change
-  AnimationController _clockAnimation;
+  late final AnimationController _clockAnimation;
 
   // Utils class that provide scaling for all elements on the screem
   //
   // The class calculates the ratio of the current device in comparison to
   // a 480x800 dp device that was the base for the design. The ratio it's
   // used to scale all the elements on the screen.
-  Utils _utils;
+  late Utils _utils;
 
   // Index that designates which element the "Flighing off" animation should play on.
   //
@@ -125,7 +130,7 @@ class _ClockState extends State<Clock>
   void initState() {
     super.initState();
     // Hide the status bar
-    SystemChrome.setEnabledSystemUIOverlays([]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     // Instruct the operating system we want landscape orientaion.
     SystemChrome.setPreferredOrientations([
@@ -134,16 +139,22 @@ class _ClockState extends State<Clock>
     ]);
 
     // Initiating the looping animation that plays most of the time.
-    _idleAnimation =
-        AnimationController(duration: Duration(seconds: 8), vsync: this);
+    _idleAnimation = AnimationController(
+      duration: const Duration(seconds: 8),
+      vsync: this,
+    );
 
     // Initiating the "Flyiging off" animation.
-    _activeAnimation =
-        AnimationController(duration: Duration(seconds: 30), vsync: this);
+    _activeAnimation = AnimationController(
+      duration: const Duration(seconds: 30),
+      vsync: this,
+    );
 
     // Initiating the [ClockCounter] animation.
     _clockAnimation = AnimationController(
-        duration: Duration(milliseconds: 2500), vsync: this);
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
 
     // Initiating [_birdControls]
     //
@@ -163,7 +174,7 @@ class _ClockState extends State<Clock>
     _idleAnimation.addStatusListener(_idleAnimationListener);
 
     // Start the "Idle Animation"
-    _idleAnimation.forward().orCancel;
+    _idleAnimation.forward();
 
     // Start the clock loop.
     _updateTime();
@@ -195,24 +206,29 @@ class _ClockState extends State<Clock>
     // The future waits for the two texture files to load and then resolves.
     // TODO: Reasign on dependancies change?
     _imagesFuture ??= Future.wait([
-      _loadImage(AssetBundleImageKey(
-          name: "assets/images/Pngs_Flat_0001_Texture_Screen.png",
+      _loadImage(
+        AssetBundleImageKey(
+          name: 'assets/images/Pngs_Flat_0001_Texture_Screen.png',
           bundle: DefaultAssetBundle.of(context),
-          scale: _utils.scaleDimentions(1))),
-      _loadImage(AssetBundleImageKey(
-          name: "assets/images/Pngs_Flat_0002_Texture_Multiply.png",
+          scale: _utils.scaleDimentions(1),
+        ),
+      ),
+      _loadImage(
+        AssetBundleImageKey(
+          name: 'assets/images/Pngs_Flat_0002_Texture_Multiply.png',
           bundle: DefaultAssetBundle.of(context),
-          scale: _utils.scaleDimentions(1)))
+          scale: _utils.scaleDimentions(1),
+        ),
+      ),
     ]);
   }
 
   @override
   void dispose() {
-    super.dispose();
-    // Dispose of animation controllers if initialized.
-    _idleAnimation?.dispose();
-    _activeAnimation?.dispose();
-    _clockAnimation?.dispose();
+    // Dispose of animation controllers.
+    _idleAnimation.dispose();
+    _activeAnimation.dispose();
+    _clockAnimation.dispose();
 
     // Dispose of timers if initialzied.
     _timer?.cancel();
@@ -225,7 +241,6 @@ class _ClockState extends State<Clock>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    print(state);
     if (state == AppLifecycleState.paused) {
       // Remove the [_birdTime] value, so when the app is resumed,
       // there's no change, the [_birdControlls] animation starts before
@@ -239,7 +254,7 @@ class _ClockState extends State<Clock>
       _dateTime = DateTime.now();
       _prevTime = _dateTime;
       _appInForeground = true;
-      // Read [_birdTime] form the file system and assign it when the Future resolves
+      // Read [_birdTime] form the persisted storage and assign it when the Future resolves
       _getBirdTime();
     }
   }
@@ -247,13 +262,12 @@ class _ClockState extends State<Clock>
   void _updateTime() {
     // Triggers rebuild for the entire app to reflect the changes in time
     setState(() {
-      // Assign [_prevTime] the previous value of [_dateTime] or the current time
-      // f it's first render.
+      // Assign [_prevTime] the previous value of [_dateTime].
       //
       // The value of [_prevTime] it's used for the [ClockCounter] numbers animations
       // so the first animation will not play for the numbers there in no case.
       // It's important do be done before [_dateTime] it's reasigned.
-      _prevTime = _dateTime ?? DateTime.now();
+      _prevTime = _dateTime;
 
       // Assign [_date_Time] to current time
       _dateTime = DateTime.now();
@@ -263,22 +277,23 @@ class _ClockState extends State<Clock>
       if (_appInForeground) {
         // Reset and play the animation for the [ClockCounter] numbers.
         _clockAnimation.reset();
-        _clockAnimation.forward().orCancel;
+        _clockAnimation.forward();
       }
 
       // If the [_getBirdTime()] Future has returned and [_birdTime] has value check if the [_dateTime] (current time)
       // is after [_birdTime] (the time the bird animation) is scheduled and if its round minute
       //
       // If the bird time it's in the past, the [_getBirdTime] function calculates a new time the next day and
-      // writes it in the file system and after that assigns the new value to the [_birdTime]. It's important
+      // persists it and after that assigns the new value to the [_birdTime]. It's important
       // to not start the first render wit the bird animation playing.
-      if (_birdTime != null && _dateTime.isAfter(_birdTime)) {
+      final birdTime = _birdTime;
+      if (birdTime != null && _dateTime.isAfter(birdTime)) {
         // Removes the status listener that loops the animation and adds status listener that will play the [_birdControls] animation
         _idleAnimation.removeStatusListener(_idleAnimationListener);
         _idleAnimation.addStatusListener(_lastIdleAnimationListener);
         // Else if not's the time to play and it's round minute the bird animaion play the "Active animation" of the [_activeAnimation], the
         // leaves flying off
-      } else if (_dateTime.second == 0 && _appInForeground == true) {
+      } else if (_dateTime.second == 0 && _appInForeground) {
         // Choose a random index for the leaf that's going to fly off.
         //
         // This index is used in the [ClockUiInheritedModel] InheritedModel to notify
@@ -286,12 +301,12 @@ class _ClockState extends State<Clock>
         _activeAnimationWidgetIndex = Random().nextInt(19);
         // Play the [_activeAnimation]
         _activeAnimation.reset();
-        _activeAnimation.forward().orCancel;
+        _activeAnimation.forward();
       }
 
       // Schedule the [_timer] for the next time the clock needs to update.
       _timer = Timer(
-        Duration(minutes: 1) -
+        const Duration(minutes: 1) -
             Duration(seconds: _dateTime.second) -
             Duration(milliseconds: _dateTime.millisecond),
         _updateTime,
@@ -300,10 +315,10 @@ class _ClockState extends State<Clock>
   }
 
   // [AnimationStatusListener] that loops the animation.
-  void _idleAnimationListener(status) {
+  void _idleAnimationListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
       _idleAnimation.reset();
-      _idleAnimation.forward().orCancel;
+      _idleAnimation.forward();
     }
   }
 
@@ -311,7 +326,7 @@ class _ClockState extends State<Clock>
   //
   // This listener is added when it's time for the [_birdControls] animtion to play and
   // removed after it gets called (the bird animation needs to play once)
-  void _lastIdleAnimationListener(status) {
+  void _lastIdleAnimationListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
       _idleAnimation.removeStatusListener(_lastIdleAnimationListener);
       _birdControls.play(_birdAnimations.getFlyIn());
@@ -323,7 +338,7 @@ class _ClockState extends State<Clock>
   //
   // It's assigned to the [_birdControls] during the init state and it's not removed.
   // We use it to check wihch animation has played and deside which to play next.
-  void _birdAnimationListener(name) {
+  void _birdAnimationListener(String name) {
     // If the bird has flown off the screen.
     if (name == _birdAnimations.getFlyOut()) {
       // Start the [_idleAnimation] again.
@@ -331,129 +346,135 @@ class _ClockState extends State<Clock>
       // Add the [AnimationStatusListener] that loops the animation.
       _idleAnimation.addStatusListener(_idleAnimationListener);
       // Play the [_idleAnimation].
-      _idleAnimation.forward().orCancel;
+      _idleAnimation.forward();
       // If any other animation has played check if there's time for the bird to play any other animation
       //
       // If there's not time, play the fly off animation
     } else {
-      DateTime currentTime = DateTime.now();
+      final DateTime currentTime = DateTime.now();
+      final DateTime? birdTime = _birdTime;
+
+      // The bird animations should be restricted to 55 secs to leave time for the bird to fly out and to persist the
+      // new [_birdTime].
+      // This time includes the end of the last [_idleAnimation] too.
+      // This is generous period to allow for the 2 seconds delay between the animations to play, without the risk of looping the minute
+      //
+      // Add the timestamp of when the bird needed to come (the bird gets delayed by the end of the last [_idleAniamtion])
+      // and substract the current timestamp to get how much miliseconds we have until the 55 second period the bird has.
+      // If the app was paused in the meantime ([_birdTime] is null) there's no time left.
+      final int timeLeft = birdTime == null
+          ? 0
+          : 55000 +
+                birdTime.millisecondsSinceEpoch -
+                currentTime.millisecondsSinceEpoch;
 
       // [_birdAniamtions.getRandom] returns a random name from the list of bird animations that has duration smaller than the provided time in miliseconds
-      String nextAnimationName = _birdAnimations.getRandom(
-          // The bird animations should be restricted to 55 secs to leave time for the bird to fly out and to write in the file system the
-          // new [_birdTime].
-          // This time includes the end of the last [_idleAnimation] too.
-          // This is generous period to allow for the 2 seconds delay between the animations to play, without the risk of looping the minute
-          55000
-              // Add the timestamp of when the bird needed to come (the bird gets delayed by the end of the last [_idleAniamtion]
-              +
-              _birdTime.millisecondsSinceEpoch
-              // Substract the current timestamp to get how much miliseconds we have until the 55 second period the bird has
-              -
-              currentTime.millisecondsSinceEpoch);
+      final String? nextAnimationName = _birdAnimations.getRandom(timeLeft);
 
       // If [_birdAniamtions.getRandom] can choose an animation (there's animations that can fit into the time frame).
       if (nextAnimationName != null) {
         // Offset the new [_birdControls] animation by 2 seconds.
         _birdTimer = Timer(
-            Duration(seconds: 2), () => _birdControls.play(nextAnimationName));
+          const Duration(seconds: 2),
+          () => _birdControls.play(nextAnimationName),
+        );
         // If the [_birdAniamtions.getRandom] can't return an animation (all the animations can't fit in the time frame, the bird needs to fly off.
       } else {
         // Play the [_birdControls] and [_haloControls] animations
         _birdControls.play(_birdAnimations.getFlyOut());
         _haloControls.play(_birdAnimations.getFlyOut());
-        // [_setBirdTime] calculates the new [_birdTime] and returns a Future that reslves when the time is written in the file system, then updates the [_birdTime].
+        // [_setBirdTime] calculates the new [_birdTime] and returns a Future that reslves when the time is persisted, then updates the [_birdTime].
         _setBirdTime().then((birdTime) => _birdTime = birdTime);
       }
     }
   }
 
-  // Read the timestamp for the [_birdTime] form the file system and calcualte the [DateTime] and assign it to [_birdTime].
-  void _getBirdTime() async {
-    // If it's the app first run the document holding the timestamp is not created.
+  // Read the persisted timestamp for the [_birdTime], calcualte the [DateTime] and assign it to [_birdTime].
+  Future<void> _getBirdTime() async {
+    int? storedMillis;
     try {
-      // Get the file.
-      final Directory directory = await getApplicationDocumentsDirectory();
-      final File file = File('${directory.path}/birdTime.txt');
+      final prefs = await SharedPreferences.getInstance();
+      storedMillis = prefs.getInt(_birdTimePrefsKey);
+    } catch (_) {
+      // Persistence is unavailable on this platform; behave like a first launch.
+      storedMillis = null;
+    }
 
-      // Read the timestamp as string.
-      String birdTime = await file.readAsString();
-
-      // Parse the timestamp as integer.
-      int birdTimeMillis = int.parse(birdTime);
-
-      // If the parsed value is not null and if the time for the bird animation is not in the past (for subsequent app loads) assign the [DateTime] value to the [_birdTime].
-      //
-      // We check if the value is in the past because if we allow it to be, it'll play on each app start in separate days.
-      if (birdTimeMillis != null &&
-          DateTime.now()
-              .isBefore(DateTime.fromMillisecondsSinceEpoch(birdTimeMillis))) {
-        _birdTime = DateTime.fromMillisecondsSinceEpoch(birdTimeMillis);
-        // If the value for the timestamp is not set, or the timestamp is in the past.
-      } else {
-        _birdTime = await _setBirdTime();
-      }
-      // If the file is not present (on first app launch).
-    } catch (e) {
+    // If the stored value is set and the time for the bird animation is not in the past (for subsequent app loads) assign the [DateTime] value to the [_birdTime].
+    //
+    // We check if the value is in the past because if we allow it to be, it'll play on each app start in separate days.
+    if (storedMillis != null &&
+        DateTime.now().isBefore(
+          DateTime.fromMillisecondsSinceEpoch(storedMillis),
+        )) {
+      _birdTime = DateTime.fromMillisecondsSinceEpoch(storedMillis);
+      // If the value for the timestamp is not set (first launch), or the timestamp is in the past.
+    } else {
       _birdTime = await _setBirdTime();
     }
   }
 
-  // Future that calculates the time for the next [_birdControls] animation and writes it in the filesystem, then resloves with the value.
+  // Future that calculates the time for the next [_birdControls] animation and persists it, then resloves with the value.
   Future<DateTime> _setBirdTime() async {
-    // Get the file.
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final File file = File('${directory.path}/birdTime.txt');
-
     // Get the current time.
-    DateTime now = DateTime.now();
+    final DateTime now = DateTime.now();
 
     // Get the last midnight.
     //
     // We'll add a full day plus random time between 0 - 23 hours and 0 - 59 minutes
-    DateTime lastMidnightTime = DateTime(now.year, now.month, now.day);
+    final DateTime lastMidnightTime = DateTime(now.year, now.month, now.day);
 
     // Calculate random time during the next calendar day.
     //
     // We want to have a guarnateed one play for calendar day, to retain the
-    DateTime nextBirdTime = lastMidnightTime.add(Duration(
-        days: 1, hours: Random().nextInt(24), minutes: Random().nextInt(60)));
+    final DateTime nextBirdTime = lastMidnightTime.add(
+      Duration(
+        days: 1,
+        hours: Random().nextInt(24),
+        minutes: Random().nextInt(60),
+      ),
+    );
 
-    // Write the timestamp in the file
-    await file.writeAsString(nextBirdTime.millisecondsSinceEpoch.toString());
+    // Persist the timestamp
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_birdTimePrefsKey, nextBirdTime.millisecondsSinceEpoch);
+    } catch (_) {
+      // Persistence is unavailable; keep the schedule in memory for this session.
+    }
 
     // Resolve the Future with the value
     return nextBirdTime;
   }
 
-  // Load the images for the texture effect from the file system
+  // Load the images for the texture effect from the asset bundle
   //
   // It may take some time so it's Future, that resolves with an [dart:ui.Image]
   Future<ui.Image> _loadImage(AssetBundleImageKey key) async {
     final ByteData data = await key.bundle.load(key.name);
-    if (data == null) throw 'Unable to read data';
-    var codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-    var frame = await codec.getNextFrame();
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
     return frame.image;
   }
 
   @override
   Widget build(BuildContext context) {
     // Calculate the String representations for the [_dateTime] and [_prevDateTime] values
-    final hours = DateFormat('H').format(_dateTime);
+    //
+    // Hours are zero padded: the [ClockCounter] always renders two digits for each.
+    final hours = DateFormat('HH').format(_dateTime);
     final minutes = DateFormat('mm').format(_dateTime);
-    final prevHours = DateFormat("H").format(_prevTime);
-    final prevMinutes = DateFormat("mm").format(_prevTime);
+    final prevHours = DateFormat('HH').format(_prevTime);
+    final prevMinutes = DateFormat('mm').format(_prevTime);
 
     // Format the [_dateTime] for screen readers
-    final assessabilityTime = DateFormat("jm").format(_dateTime);
+    final assessabilityTime = DateFormat('jm').format(_dateTime);
 
     return
-        // Return the [ClockUiInheritedModel] that holds all the data for the clock
-        Semantics(
-      label: "Current time: $assessabilityTime}",
+    // Return the [ClockUiInheritedModel] that holds all the data for the clock
+    Semantics(
+      label: 'Current time: $assessabilityTime',
       child: ExcludeSemantics(
-        excluding: true,
         child: ClockUiInheritedModel(
           hours: hours,
           minutes: minutes,
@@ -462,7 +483,8 @@ class _ClockState extends State<Clock>
           idleAnimation: _idleAnimation,
           activeAnimation: _activeAnimation,
           activeAnimationWidgetIndex: _activeAnimationWidgetIndex,
-          imagesFuture: _imagesFuture,
+          // Always assigned in [didChangeDependencies], which runs before [build].
+          imagesFuture: _imagesFuture!,
           birdControls: _birdControls,
           haloControls: _haloControls,
           clockAnimation: _clockAnimation,

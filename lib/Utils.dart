@@ -6,23 +6,23 @@ import 'package:flutter/material.dart';
 // need it.
 // It's possible because of the fixed aspect ratio of the app
 class Utils {
-  final ratio;
+  Utils({required BuildContext context}) : ratio = calculateRatio(context);
 
-  Utils({BuildContext context}) : ratio = calculateRatio(context);
+  final double ratio;
 
   // Scale given [size] by [this.ratio]
   double scaleDimentions(double size) {
-    return size * this.ratio;
+    return size * ratio;
   }
 }
 
 // Function that calculates the ratio
-double calculateRatio(context) {
+double calculateRatio(BuildContext context) {
   // Get hold of the screen size
-  Size size = MediaQuery.of(context).size;
+  final Size size = MediaQuery.sizeOf(context);
 
   // [prefferedHeight] the height the device would have to have to fit the [AspectRatio] box full width
-  double prefferedHeight = size.width / 5 * 3;
+  final double prefferedHeight = size.width / 5 * 3;
 
   // if the [size.height] is smaller than the [prefferedHeight] then [size.height] is restricting the box otherwise it's the [size.width]
   if (prefferedHeight > size.height) {

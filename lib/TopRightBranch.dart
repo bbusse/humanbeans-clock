@@ -1,15 +1,15 @@
-import 'package:clock/BranchAnimation.dart';
-import 'package:clock/ClockUiInheritedModel.dart';
-import 'package:clock/Leaf.dart';
+import 'package:humanbeans_clock/BranchAnimation.dart';
+import 'package:humanbeans_clock/ClockUiInheritedModel.dart';
+import 'package:humanbeans_clock/Leaf.dart';
+import 'package:humanbeans_clock/keyframes.dart';
 import 'package:flutter/material.dart';
-import 'package:supernova_flutter_ui_toolkit/keyframes.dart';
 
 // Widget that holds all the elements for the top right branch
 //
 // The widgets in this class are absolute positioned to the top right corner
 // of the parent and are scaled depending on the screen size
 class TopRightBranch extends StatelessWidget {
-  const TopRightBranch({Key key}) : super(key: key);
+  const TopRightBranch({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -18,22 +18,26 @@ class TopRightBranch extends StatelessWidget {
     // We use the model for the [Utils] class, which scales the widgets with absolute
     // dimentions. The size aspect of the model should change only on screen resize,
     // so the widget should not rebuild
-    final ClockUiInheritedModel model =
-        ClockUiInheritedModel.of(context, 'size');
+    final ClockUiInheritedModel model = ClockUiInheritedModel.of(
+      context,
+      'size',
+    );
 
     return SizedBox(
       width: model.utils.scaleDimentions(436),
       height: model.utils.scaleDimentions(436),
       child: BranchAnimation(
-          animationController: model.idleAnimation,
-          keyframes: <Keyframe<double>>[
-            Keyframe<double>(fraction: 0, value: 0),
-            Keyframe<double>(fraction: 0.9, value: -0.03),
-            Keyframe<double>(fraction: 1, value: 0)
-          ],
-          interval: Interval(0, 1, curve: Curves.easeOutQuad),
-          transformOrigin: FractionalOffset(0.3, 0),
-          child: Stack(fit: StackFit.expand, children: <Widget>[
+        animationController: model.idleAnimation,
+        keyframes: const <Keyframe<double>>[
+          Keyframe<double>(fraction: 0, value: 0),
+          Keyframe<double>(fraction: 0.9, value: -0.03),
+          Keyframe<double>(fraction: 1, value: 0),
+        ],
+        interval: const Interval(0, 1, curve: Curves.easeOutQuad),
+        transformOrigin: const FractionalOffset(0.3, 0),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
             Positioned(
               top: 0,
               right: 0,
@@ -42,30 +46,29 @@ class TopRightBranch extends StatelessWidget {
                 height: model.utils.scaleDimentions(140),
                 child: BranchAnimation(
                   animationController: model.idleAnimation,
-                  keyframes: <Keyframe<double>>[
+                  keyframes: const <Keyframe<double>>[
                     Keyframe<double>(fraction: 0, value: 0),
                     Keyframe<double>(fraction: 0.9, value: 0.06),
-                    Keyframe<double>(fraction: 1, value: 0)
+                    Keyframe<double>(fraction: 1, value: 0),
                   ],
-                  interval: Interval(0, 1, curve: Curves.easeOutQuad),
-                  transformOrigin: FractionalOffset(0.5, 0.85),
+                  interval: const Interval(0, 1, curve: Curves.easeOutQuad),
+                  transformOrigin: const FractionalOffset(0.5, 0.85),
                   child: Stack(
                     fit: StackFit.expand,
                     children: <Widget>[
                       Positioned(
                         top: model.utils.scaleDimentions(37),
-                        right: ClockUiInheritedModel.of(context, 'size')
-                            .utils
-                            .scaleDimentions(162),
+                        right: model.utils.scaleDimentions(162),
                         child: SizedBox(
                           width: model.utils.scaleDimentions(201),
                           height: model.utils.scaleDimentions(82),
                           child: Image.asset(
-                              "assets/images/Pngs_Flat_0036_B_Br_Right_1.png",
-                              fit: BoxFit.contain),
+                            'assets/images/Pngs_Flat_0036_B_Br_Right_1.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
-                      Leaf(
+                      const Leaf(
                         index: 16,
                         top: 14,
                         right: 234,
@@ -77,10 +80,10 @@ class TopRightBranch extends StatelessWidget {
                         keyframes: <Keyframe<double>>[
                           Keyframe<double>(fraction: 0, value: 0),
                           Keyframe<double>(fraction: 0.9, value: -0.09),
-                          Keyframe<double>(fraction: 1, value: 0)
+                          Keyframe<double>(fraction: 1, value: 0),
                         ],
                       ),
-                      Leaf(
+                      const Leaf(
                         index: 17,
                         top: 32,
                         right: 352,
@@ -92,7 +95,7 @@ class TopRightBranch extends StatelessWidget {
                         keyframes: <Keyframe<double>>[
                           Keyframe<double>(fraction: 0, value: 0),
                           Keyframe<double>(fraction: 0.9, value: 0.09),
-                          Keyframe<double>(fraction: 1, value: 0)
+                          Keyframe<double>(fraction: 1, value: 0),
                         ],
                       ),
                     ],
@@ -104,34 +107,37 @@ class TopRightBranch extends StatelessWidget {
               top: model.utils.scaleDimentions(240),
               right: model.utils.scaleDimentions(63),
               child: BranchAnimation(
-                  animationController: model.idleAnimation,
-                  keyframes: <Keyframe<double>>[
-                    Keyframe<double>(fraction: 0, value: 0),
-                    Keyframe<double>(fraction: 0.9, value: -0.06),
-                    Keyframe<double>(fraction: 1, value: 0)
-                  ],
-                  interval: Interval(0, 1, curve: Curves.easeOutQuad),
-                  transformOrigin: FractionalOffset(1, 0.85),
-                  child: SizedBox(
-                    width: model.utils.scaleDimentions(263),
-                    height: model.utils.scaleDimentions(78),
-                    child: Image.asset(
-                        "assets/images/Pngs_Flat_0037_B_Br_right_2.png",
-                        fit: BoxFit.contain),
-                  )),
+                animationController: model.idleAnimation,
+                keyframes: const <Keyframe<double>>[
+                  Keyframe<double>(fraction: 0, value: 0),
+                  Keyframe<double>(fraction: 0.9, value: -0.06),
+                  Keyframe<double>(fraction: 1, value: 0),
+                ],
+                interval: const Interval(0, 1, curve: Curves.easeOutQuad),
+                transformOrigin: const FractionalOffset(1, 0.85),
+                child: SizedBox(
+                  width: model.utils.scaleDimentions(263),
+                  height: model.utils.scaleDimentions(78),
+                  child: Image.asset(
+                    'assets/images/Pngs_Flat_0037_B_Br_right_2.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
             ),
             Positioned(
               top: 0,
               right: model.utils.scaleDimentions(37),
-              child: Container(
+              child: SizedBox(
                 width: model.utils.scaleDimentions(153),
                 height: model.utils.scaleDimentions(389),
                 child: Image.asset(
-                    'assets/images/Pngs_Flat_0035_B_Br_right.png',
-                    fit: BoxFit.contain),
+                  'assets/images/Pngs_Flat_0035_B_Br_right.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
-            Leaf(
+            const Leaf(
               index: 14,
               top: 70,
               right: 16,
@@ -139,14 +145,14 @@ class TopRightBranch extends StatelessWidget {
               height: 85,
               toRight: false,
               offset: FractionalOffset(0.1, 1),
-              imageUri: "assets/images/Pngs_Flat_0023_B_Leaf_R_4.png",
+              imageUri: 'assets/images/Pngs_Flat_0023_B_Leaf_R_4.png',
               keyframes: <Keyframe<double>>[
                 Keyframe<double>(fraction: 0, value: 0),
                 Keyframe<double>(fraction: 0.9, value: 0.06),
-                Keyframe<double>(fraction: 1, value: 0)
+                Keyframe<double>(fraction: 1, value: 0),
               ],
             ),
-            Leaf(
+            const Leaf(
               index: 15,
               top: 16,
               right: 40,
@@ -154,14 +160,14 @@ class TopRightBranch extends StatelessWidget {
               height: 107,
               toRight: false,
               offset: FractionalOffset(0, 1),
-              imageUri: "assets/images/Pngs_Flat_0024_B_Leaf_R_3.png",
+              imageUri: 'assets/images/Pngs_Flat_0024_B_Leaf_R_3.png',
               keyframes: <Keyframe<double>>[
                 Keyframe<double>(fraction: 0, value: 0),
                 Keyframe<double>(fraction: 0.9, value: -0.06),
-                Keyframe<double>(fraction: 1, value: 0)
+                Keyframe<double>(fraction: 1, value: 0),
               ],
             ),
-            Leaf(
+            const Leaf(
               index: 18,
               top: 153,
               right: 16,
@@ -169,14 +175,16 @@ class TopRightBranch extends StatelessWidget {
               height: 127,
               toRight: false,
               offset: FractionalOffset(0.2, 0),
-              imageUri: "assets/images/Pngs_Flat_0022_B_Leaf_R_5.png",
+              imageUri: 'assets/images/Pngs_Flat_0022_B_Leaf_R_5.png',
               keyframes: <Keyframe<double>>[
                 Keyframe<double>(fraction: 0, value: 0),
                 Keyframe<double>(fraction: 0.9, value: 0.06),
-                Keyframe<double>(fraction: 1, value: 0)
+                Keyframe<double>(fraction: 1, value: 0),
               ],
             ),
-          ])),
+          ],
+        ),
+      ),
     );
   }
 }

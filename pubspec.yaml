@@ -1,50 +1,43 @@
-name: clock
-description: Humanbeans Flutter Clock Challange Submission
+name: humanbeans_clock
+description: Humanbeans Flutter Clock Challenge Submission
+publish_to: none
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
 # followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
 # In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 version: 1.1.1
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.16.0
-  supernova_flutter_ui_toolkit: ^0.0.2
-  flare_flutter: ^1.8.3
-  path_provider: ^1.5.1
-  flutter_launcher_icons: ^0.7.4
 
+  # Plays the .flr bird and halo animations. Upstream (2d-inc/Flare-Flutter) is
+  # unmaintained and no longer compiles against current Flutter, so a patched
+  # copy lives in packages/flare_flutter (MIT, see its LICENSE).
+  flare_flutter:
+    path: packages/flare_flutter
 
+  intl: ^0.20.2
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^0.1.2
+  # Persists the next "bird visit" timestamp. Works on Android, iOS, Linux and
+  # web (the old path_provider/dart:io approach could not run on web).
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # The following section is specific to Flutter.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
+  # Include the Material Icons font.
   uses-material-design: true
 
   assets:
@@ -95,6 +88,15 @@ flutter:
       fonts:
         - asset: assets/fonts/Bird_font.ttf
 
-flutter_icons:
+# `dart run flutter_launcher_icons` regenerates the platform launcher icons.
+flutter_launcher_icons:
   image_path: "assets/images/icon.png"
   android: true
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/images/icon.png"
+  web:
+    generate: true
+    image_path: "assets/images/icon.png"
