@@ -1,30 +1,46 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:humanbeans_clock/LoadingScreen.dart';
+import 'package:humanbeans_clock/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:clock/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+  testWidgets('shows the loading screen until the textures are decoded', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(const MyApp());
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    // The texture images are decoded asynchronously; the first frame is the
+    // loading screen and the current time is exposed to screen readers.
+    expect(find.byType(LoadingScreen), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Current time: ')), findsOneWidget);
+
+    // Tear the clock down so its timers and tickers are disposed before the
+    // test ends.
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('schedules the first bird visit for the next day', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+
+    await tester.pumpWidget(const MyApp());
+    // Let the persisted-time lookup complete.
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    final int? birdTimeMillis = prefs.getInt('birdTime');
+    expect(birdTimeMillis, isNotNull);
+
+    final birdTime = DateTime.fromMillisecondsSinceEpoch(birdTimeMillis!);
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    expect(birdTime.isBefore(tomorrow), isFalse);
+    expect(birdTime.isBefore(tomorrow.add(const Duration(days: 1))), isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }
