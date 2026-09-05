@@ -1,0 +1,17 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Vendored third-party package; analysed with its own options, not ours.
+    - packages/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    # The sources predate the lint and keep their original PascalCase names.
+    file_names: false
