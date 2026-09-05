@@ -1,11 +1,11 @@
 {
-    "name": "humanbeans_clock",
-    "short_name": "humanbeans_clock",
+    "name": "Eventually",
+    "short_name": "Eventually",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Humanbeans Flutter Clock Challenge Submission",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
